@@ -1,0 +1,8 @@
+{
+    "Prettier-SQL.SQLFlavourOverride": "sqlite",
+    "Prettier-SQL.keywordCase": "upper",
+    "Prettier-SQL.indentStyle": "tabularRight",
+    "Prettier-SQL.ignoreTabSettings": true,
+    "Prettier-SQL.expressionWidth": 100,
+    "python.analysis.typeCheckingMode": "strict"
+}
