@@ -1,6 +1,9 @@
 import sqlite3
-from typing import List
+from typing import List, Optional
 from abc import ABC, abstractmethod
+from model import FlightView
+from utils import print_table
+import re
 
 
 # Abstract base class that defines the common structure
@@ -127,22 +130,69 @@ class InitializeAirlineSchemaDBOperation(DBOperation):
 
 # Database operation that retrieves all flights.
 class SearchFlightsDBOperation(DBOperation):
+  __JOIN_PILOT_TABLE = "LEFT JOIN PILOT AS p ON f.PilotID = p.PilotID"
+  __JOIN_ORIGIN_AIRPORT_TABLE = "JOIN AIRPORT AS o ON f.OriginID = o.AirportID"
+  __JOIN_ORIGIN_COUNTRY_TABLE = "JOIN COUNTRY AS co ON o.CountryID = co.CountryID"
+  __JOIN_DESTINATION_AIRPORT_TABLE = "JOIN AIRPORT AS d ON f.DestinationID = d.AirportID"
+  __JOIN_DESTINATION_COUNTRY_TABLE = "JOIN COUNTRY AS cd ON d.CountryID = cd.CountryID"
+  __FIELD_NAME_MAP = {
+    "flight_id": "f.FlightID as flight_id",
+    "flight_number": "f.FlightNumber as flight_number",
+    "status": "f.Status as status",
+    "departure": "f.Departure as departure",
+    "arrival": "f.Arrival as arrival",
+    "pilot_full_name": "p.FullName as pilot_full_name",
+    "pilot_license_number": "p.LicenseNumber as pilot_license_number",
+    "pilot_contact_number": "p.ContactNumber as pilot_contact_number",
+    "pilot_flight_hours": "p.FlightHours as pilot_flight_hours",
+    "origin_airport_code": "o.AirportCode as origin_airport_code",
+    "origin_airport_name": "o.AirportName as origin_airport_name",
+    "origin_country": "co.CountryName as origin_country",
+    "destination_airport_code": "d.AirportCode as destination_airport_code",
+    "destination_airport_name": "d.AirportName as destination_airport_name",
+    "destination_country": "cd.CountryName as destination_country"
+  }
+
+  __result: List[FlightView] = []
+
+  def __init__(self, query_projection: Optional[List[str]]):
+    super().__init__()
+    self.__query_projection = query_projection
+
+  # Return the fetched list of fights
+  @property
+  def query_result(self) -> List[FlightView]:
+    return self.__result
 
   def _execute(self):
+    self.__result = []
 
-    # Retrieve all rows from the FLIGHT table.
-    self._cursor.execute("SELECT * FROM FLIGHT")
+    projection = ', '.join(list(self.__FIELD_NAME_MAP.values()))
+    if self.__query_projection:
+      projection = ', '.join([self.__FIELD_NAME_MAP[p] for p in self.__query_projection])
 
-    # Print each flight record.
+    query = f"""
+      SELECT {projection}
+        FROM FLIGHT AS f
+        {self.__JOIN_PILOT_TABLE if "p." in projection else ""}
+        {self.__JOIN_ORIGIN_AIRPORT_TABLE if "o." in projection else ""}
+        {self.__JOIN_ORIGIN_COUNTRY_TABLE if "co." in projection else ""}
+        {self.__JOIN_DESTINATION_AIRPORT_TABLE if "d." in projection else ""}
+        {self.__JOIN_DESTINATION_COUNTRY_TABLE if "cd." in projection else ""}
+    """.strip()
+    print("Executed query:\n")
+    print(query, ";\n")
+    self._cursor.execute(query)
+    columns = [col[0] for col in self._cursor.description]
     for row in self._cursor.fetchall():
-      print(row)
+      self.__result.append(FlightView(**dict(zip(columns, row))))
 
 
 # Abstract representation of a menu option in the CLI.
 class MenuOption(ABC):
   def __init__(self):
     super().__init__()
-    self._name = ''
+    self._name = ""
   
   # Public read-only property for the menu option name.
   @property
@@ -165,7 +215,35 @@ class SearchFlightsMenuOption(MenuOption):
 
   # Execute the associated database operation.
   def execute_option(self):
-    SearchFlightsDBOperation().execute_transaction()
+    print("""
+Flight View field names:
+  flight_id
+  flight_number
+  status
+  departure
+  arrival
+  pilot_full_name
+  pilot_license_number
+  pilot_contact_number
+  pilot_flight_hours
+  origin_airport_code
+  origin_airport_name
+  origin_country
+  destination_airport_code
+  destination_airport_name
+  destination_country
+
+Type the fields, separated by spaces, to be displayed in the table.
+Pressing Enter without inserting any input displays all the fields.
+    """)
+    query_projection = None
+    raw_input = input("Field names: ").strip()
+    if raw_input:
+      query_projection = re.split(r'\s+', raw_input)
+    print()
+    search_flights = SearchFlightsDBOperation(query_projection)
+    search_flights.execute_transaction()
+    print_table(search_flights.query_result, query_projection)
 
 
 # Menu option that exits the application.
@@ -219,7 +297,7 @@ class Menu:
 
 
 # Names of all required schema tables.
-table_names = ['PILOT', 'COUNTRY', 'AIRPORT', 'FLIGHT']
+table_names = ["PILOT", "COUNTRY", "AIRPORT", "FLIGHT"]
 
 # Create schema and seed database if needed.
 InitializeAirlineSchemaDBOperation(table_names).execute_transaction()
