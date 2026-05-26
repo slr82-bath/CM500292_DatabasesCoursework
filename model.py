@@ -1,8 +1,7 @@
 from dataclasses import dataclass
-from datetime import datetime
-from typing import Optional
+from datetime import datetime, date
+from typing import Optional, TypedDict, NotRequired, List
 from enum import Enum
-from typing import List
 import re
 
 
@@ -190,3 +189,18 @@ class FlightView:
         self.destination_airport_code = destination_airport_code
         self.destination_airport_name = destination_airport_name
         self.destination_country = destination_country
+
+# FlightSearch class -> Configures the flight query
+class FlightSearch(TypedDict):
+    projection: NotRequired[List[str]]
+    flight_id: NotRequired[int]
+    flight_number: NotRequired[str]
+    status: NotRequired[FlightStatus]
+    date_of_flight: NotRequired[date]
+    includes_pilot_full_name: NotRequired[str]
+    pilot_license_number: NotRequired[str]
+    from_pilot_flight_hours: NotRequired[float]
+    origin_airport_code: NotRequired[str]
+    origin_country_code: NotRequired[str]
+    destination_airport_code: NotRequired[str]
+    destination_country_code: NotRequired[str]
