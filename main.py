@@ -51,59 +51,59 @@ class SearchFlightsMenuOption(MenuOption):
         if optional_input("Filter flights? (y/n): ") == "y":
             print("Invalid or blank filter values will not be applied.")
 
-            flight_id = optional_input("Flight ID: ")
+            flight_id = optional_input("Flight ID (integer number): ")
             if flight_id:
                 try:
                     search["flight_id"] = int(flight_id)
                 except:
                     pass
 
-            flight_number = optional_input("Flight Number: ")
+            flight_number = optional_input("Flight number: ")
             if flight_number:
                 search["flight_number"] = flight_number
 
             print("Available statuses:")
             for status in FlightStatus:
                 print(f"{status.value} - {status.label}")
-            status_input = optional_input("Flight Status: ")
+            status_input = optional_input("Flight status: ")
             if status_input:
                 search["status"] = status_input.upper()
 
-            departure_date = optional_input("Date of Departure (YYYY-MM-DD): ")
+            departure_date = optional_input("Departure date (YYYY-MM-DD): ")
             if departure_date:
                 try:
-                    search["date_of_departure"] = date.fromisoformat(departure_date)
+                    search["departure_date"] = date.fromisoformat(departure_date)
                 except:
                     pass
 
-            pilot_name = optional_input("Pilot Full Name: ")
+            pilot_name = optional_input("Pilot name (search by names that contain the string): ")
             if pilot_name:
                 search["includes_pilot_full_name"] = pilot_name
 
-            pilot_license = optional_input("Pilot License Number: ")
+            pilot_license = optional_input("Pilot license number: ")
             if pilot_license:
                 search["pilot_license_number"] = pilot_license
 
-            flight_hours = optional_input("Minimum Pilot Flight Hours: ")
+            flight_hours = optional_input("Minimum pilot flight hours (float number): ")
             if flight_hours:
                 try:
                     search["from_pilot_flight_hours"] = float(flight_hours)
                 except:
                     pass
 
-            origin_airport = optional_input("Origin Airport Code: ")
+            origin_airport = optional_input("Origin airport code: ")
             if origin_airport:
                 search["origin_airport_code"] = origin_airport.upper()
 
-            origin_country = optional_input("Origin Country Code: ")
+            origin_country = optional_input("Origin country code: ")
             if origin_country:
                 search["origin_country_code"] = origin_country.upper()
 
-            destination_airport = optional_input("Destination Airport Code: ")
+            destination_airport = optional_input("Destination airport code: ")
             if destination_airport:
                 search["destination_airport_code"] = destination_airport.upper()
 
-            destination_country = optional_input("Destination Country Code: ")
+            destination_country = optional_input("Destination country code: ")
             if destination_country:
                 search["destination_country_code"] = destination_country.upper()
 

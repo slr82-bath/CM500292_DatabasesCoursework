@@ -173,8 +173,8 @@ class SearchFlightsDBOperation(DBOperation):
         if "status" in search and search["status"] is not None:
             query = f"{query} {filter_clause} f.Status = '{search["status"]}'"
             filter_clause = "AND"
-        if "date_of_departure" in search and search["date_of_departure"] is not None:
-            query = f"{query} {filter_clause} DATE(f.Departure) = DATE('{search["date_of_departure"]}')"
+        if "departure_date" in search and search["departure_date"] is not None:
+            query = f"{query} {filter_clause} DATE(f.Departure) = DATE('{search["departure_date"]}')"
             filter_clause = "AND"
         if (
             "includes_pilot_full_name" in search

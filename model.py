@@ -202,7 +202,7 @@ class FlightSearch(TypedDict):
     flight_id: NotRequired[int]
     flight_number: NotRequired[str]
     status: NotRequired[str]
-    date_of_departure: NotRequired[date]
+    departure_date: NotRequired[date]
     includes_pilot_full_name: NotRequired[str]
     pilot_license_number: NotRequired[str]
     from_pilot_flight_hours: NotRequired[float]
