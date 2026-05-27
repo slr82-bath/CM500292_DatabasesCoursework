@@ -1,5 +1,6 @@
-from dataclasses import fields
+import sqlparse
 from typing import List, Optional
+
 
 def print_table(objects: List, columns: Optional[List[str]]):
     if not objects:
@@ -29,7 +30,7 @@ def print_table(objects: List, columns: Optional[List[str]]):
     for h in headers:
         print(f"{h:<{max_len[h]}}", end="")
     print()
-    
+
     print("-" * (sum(list(max_len.values())) - padding))
 
     # Print rows
@@ -38,9 +39,20 @@ def print_table(objects: List, columns: Optional[List[str]]):
             print(f"{str(getattr(obj, h)):<{max_len[h]}}", end="")
         print()
 
+
 def optional_input(prompt: str) -> Optional[str]:
     """
     Returns None if user enters empty input.
     """
     value = input(prompt).strip()
     return value if value else None
+
+
+def print_sql_script(sql_script: str):
+    """
+    Print a formatted SQL script.
+    """
+    if not isinstance(sql_script, str):
+        raise TypeError("SQL script must be a string.")
+
+    print(sqlparse.format(sql_script, reindent=True, keyword_case="upper"))

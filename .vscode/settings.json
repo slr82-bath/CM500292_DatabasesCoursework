@@ -4,5 +4,9 @@
     "Prettier-SQL.indentStyle": "tabularRight",
     "Prettier-SQL.ignoreTabSettings": true,
     "Prettier-SQL.expressionWidth": 100,
-    "python.analysis.typeCheckingMode": "standard"
+    "python.analysis.typeCheckingMode": "standard",
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.black-formatter"
+    },
+    "editor.detectIndentation": false
 }

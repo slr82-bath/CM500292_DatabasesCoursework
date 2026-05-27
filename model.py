@@ -7,18 +7,18 @@ import re
 
 # FlightStatus enum -> Represents the status property of the flight
 class FlightStatus(Enum):
-    SCHEDULED = 'S'
-    OPERATIONAL = 'O'
-    TERMINATED = 'T'
+    SCHEDULED = "S"
+    OPERATIONAL = "O"
+    TERMINATED = "T"
 
     @property
     def label(self):
 
         # Return human-readable text in string format
         return {
-            FlightStatus.SCHEDULED: 'Scheduled',
-            FlightStatus.OPERATIONAL: 'Operational',
-            FlightStatus.TERMINATED: 'Terminated'
+            FlightStatus.SCHEDULED: "Scheduled",
+            FlightStatus.OPERATIONAL: "Operational",
+            FlightStatus.TERMINATED: "Terminated",
         }[self]
 
 
@@ -37,7 +37,7 @@ class Airport:
             validations.append("airport code must be a present")
 
         # Validade if airport code follows IATA standards
-        if re.fullmatch(self.airport_code, r'[A-Z]{3}'):
+        if re.fullmatch(self.airport_code, r"[A-Z]{3}"):
             validations.append("airport code must be a IATA code")
 
         # Validade if airport name is present
@@ -50,7 +50,7 @@ class Airport:
 
         # Raise error with all validations that failed if the object is not valid
         if len(validations) > 0:
-            raise ValueError('\n'.join(validations)) 
+            raise ValueError("\n".join(validations))
 
 
 # Pilot class -> Ensures insertion of valid data
@@ -73,7 +73,7 @@ class Pilot:
             validations.append("license number must be a present")
 
         # Validade if license number follows the common standards
-        if re.fullmatch(self.license_number, r'[0-9]{4}'):
+        if re.fullmatch(self.license_number, r"[0-9]{4}"):
             validations.append("license number must have 4 numerical digits")
 
         # Validade if flight hours is present
@@ -86,7 +86,7 @@ class Pilot:
 
         # Raise error with all validations that failed if the object is not valid
         if len(validations) > 0:
-            raise ValueError('\n'.join(validations)) 
+            raise ValueError("\n".join(validations))
 
 
 # Flight class -> Ensures insertion of valid data
@@ -108,7 +108,7 @@ class Flight:
             validations.append("flight number must be a present")
 
         # Validade if flight number follows the common standards
-        if re.fullmatch(self.flight_number, r'[0-9]{6}'):
+        if re.fullmatch(self.flight_number, r"[0-9]{6}"):
             validations.append("flight number must have 6 numerical digits")
 
         # Validade if departure is present
@@ -142,34 +142,39 @@ class Flight:
             validations.append("status string value must be one of 'S', 'O', and 'T'")
 
         # Enforce pilot assignment when flight status is not scheduled
-        if self.status in {FlightStatus.OPERATIONAL, FlightStatus.TERMINATED} and self.pilot_id is None:
-            validations.append("operational or terminated flights must have a pilot assigned")
-        
+        if (
+            self.status in {FlightStatus.OPERATIONAL, FlightStatus.TERMINATED}
+            and self.pilot_id is None
+        ):
+            validations.append(
+                "operational or terminated flights must have a pilot assigned"
+            )
+
         # Raise error with all validations that failed if the object is not valid
         if len(validations) > 0:
-            raise ValueError('\n'.join(validations)) 
+            raise ValueError("\n".join(validations))
 
 
 # FlightView class -> Embodies all flight related data for viewing
 class FlightView:
     def __init__(
-            self,
-            flight_id: Optional[int] = None,
-            flight_number: Optional[str] = None,
-            status: Optional[str] = None,
-            departure: Optional[str] = None,
-            arrival: Optional[str] = None,
-            pilot_full_name: Optional[str] = None,
-            pilot_license_number: Optional[str] = None,
-            pilot_contact_number: Optional[str] = None,
-            pilot_flight_hours: Optional[str] = None,
-            origin_airport_code: Optional[str] = None,
-            origin_airport_name: Optional[str] = None,
-            origin_country: Optional[str] = None,
-            destination_airport_code: Optional[str] = None,
-            destination_airport_name: Optional[str] = None,
-            destination_country: Optional[str] = None,
-        ):
+        self,
+        flight_id: Optional[int] = None,
+        flight_number: Optional[str] = None,
+        status: Optional[str] = None,
+        departure: Optional[str] = None,
+        arrival: Optional[str] = None,
+        pilot_full_name: Optional[str] = None,
+        pilot_license_number: Optional[str] = None,
+        pilot_contact_number: Optional[str] = None,
+        pilot_flight_hours: Optional[str] = None,
+        origin_airport_code: Optional[str] = None,
+        origin_airport_name: Optional[str] = None,
+        origin_country: Optional[str] = None,
+        destination_airport_code: Optional[str] = None,
+        destination_airport_name: Optional[str] = None,
+        destination_country: Optional[str] = None,
+    ):
         self.flight_id = None
         if flight_id:
             self.flight_id = str(flight_id)
