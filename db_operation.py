@@ -159,28 +159,39 @@ class SearchFlightsDBOperation(DBOperation):
 
     query = f"SELECT {projection} FROM FLIGHT AS f{self.__PROJECTION_REPLACE_KEY}"
 
+    filter_clause = "WHERE"
     if "flight_id" in search and search["flight_id"] is not None:
-      query = f"{query} WHERE f.FlightID = {search["flight_id"]}"
-    if "flight_number" in search and search["flight_number"]:
-      query = f"{query} WHERE f.FlightNumber = '{search["flight_number"]}'"
+      query = f"{query} {filter_clause} f.FlightID = {search["flight_id"]}"
+      filter_clause = "AND"
+    if "flight_number" in search and search["flight_number"] is not None:
+      query = f"{query} {filter_clause} f.FlightNumber = '{search["flight_number"]}'"
+      filter_clause = "AND"
     if "status" in search and search["status"] is not None:
-      query = f"{query} WHERE f.Status = '{search["status"].value}'"
+      query = f"{query} {filter_clause} f.Status = '{search["status"]}'"
+      filter_clause = "AND"    
     if "date_of_departure" in search and search["date_of_departure"] is not None:
-      query = f"{query} WHERE DATE(f.Departure) = DATE('{search["date_of_departure"]}')"    
-    if "includes_pilot_full_name" in search and search["includes_pilot_full_name"]:
-      query = f"{query} WHERE p.FullName LIKE '%{search["includes_pilot_full_name"]}%'"
-    if "pilot_license_number" in search and search["pilot_license_number"]:
-      query = f"{query} WHERE p.LicenseNumber = '{search["pilot_license_number"]}'"
-    if "from_pilot_flight_hours" in search and search["from_pilot_flight_hours"]:
-      query = f"{query} WHERE p.FlightHours > {search["from_pilot_flight_hours"]}"
-    if "origin_airport_code" in search and search["origin_airport_code"]:
-      query = f"{query} WHERE o.AirportCode = '{search["origin_airport_code"]}'"
-    if "origin_country_code" in search and search["origin_country_code"]:
-      query = f"{query} WHERE co.CountryCode = '{search["origin_country_code"]}'"
-    if "destination_airport_code" in search and search["destination_airport_code"]:
-      query = f"{query} WHERE d.AirportCode = '{search["destination_airport_code"]}'"
-    if "destination_country_code" in search and search["destination_country_code"]:
-      query = f"{query} WHERE cd.CountryCode = '{search["destination_country_code"]}'"
+      query = f"{query} {filter_clause} DATE(f.Departure) = DATE('{search["date_of_departure"]}')"    
+      filter_clause = "AND"
+    if "includes_pilot_full_name" in search and search["includes_pilot_full_name"] is not None:
+      query = f"{query} {filter_clause} p.FullName LIKE '%{search["includes_pilot_full_name"]}%'"
+      filter_clause = "AND"
+    if "pilot_license_number" in search and search["pilot_license_number"] is not None:
+      query = f"{query} {filter_clause} p.LicenseNumber = '{search["pilot_license_number"]}'"
+      filter_clause = "AND"
+    if "from_pilot_flight_hours" in search and search["from_pilot_flight_hours"] is not None:
+      query = f"{query} {filter_clause} p.FlightHours > {search["from_pilot_flight_hours"]}"
+      filter_clause = "AND"
+    if "origin_airport_code" in search and search["origin_airport_code"] is not None:
+      query = f"{query} {filter_clause} o.AirportCode = '{search["origin_airport_code"]}'"
+      filter_clause = "AND"
+    if "origin_country_code" in search and search["origin_country_code"] is not None:
+      query = f"{query} {filter_clause} co.CountryCode = '{search["origin_country_code"]}'"
+      filter_clause = "AND"
+    if "destination_airport_code" in search and search["destination_airport_code"] is not None:
+      query = f"{query} {filter_clause} d.AirportCode = '{search["destination_airport_code"]}'"
+      filter_clause = "AND"
+    if "destination_country_code" in search and search["destination_country_code"] is not None:
+      query = f"{query} {filter_clause} cd.CountryCode = '{search["destination_country_code"]}'"
     
     join_tables = ""
     if "p." in query:

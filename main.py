@@ -1,8 +1,9 @@
 from typing import List
 from abc import ABC, abstractmethod
 from db_operation import InitializeAirlineSchemaDBOperation, SearchFlightsDBOperation
-from model import FlightSearch
-from utils import print_table
+from model import FlightSearch, FlightStatus
+from utils import print_table, optional_input
+from datetime import date
 import re
 
 
@@ -35,8 +36,75 @@ class SearchFlightsMenuOption(MenuOption):
   # Execute the associated database operation.
   def execute_option(self):
     print()
+    search = self.__scan_flight_search()
+    print()
+    search_flights = SearchFlightsDBOperation(search)
+    print("SQL Query:\n")
+    print(search_flights.query, "\n")
+    search_flights.execute_transaction()
+    print_table(search_flights.query_result, search.get("projection", []))
 
+  def __scan_flight_search(self) -> FlightSearch:
     search: FlightSearch = {}
+
+    if optional_input("Filter flights? (y/n)") == "y":
+      print("Invalid or blank filter values will not be applied.")
+
+      flight_id = optional_input("Flight ID: ")
+      if flight_id:
+        try:
+          search["flight_id"] = int(flight_id)
+        except:
+          pass
+
+      flight_number = optional_input("Flight Number: ")
+      if flight_number:
+        search["flight_number"] = flight_number
+
+      print("Available statuses:")
+      for status in FlightStatus:
+        print(f"{status.value} - {status.label}")
+      status_input = optional_input("Flight Status: ")
+      if status_input:
+        search["status"] = status_input.upper()
+
+      departure_date = optional_input("Date of Departure (YYYY-MM-DD): ")
+      if departure_date:
+        try:
+          search["date_of_departure"] = date.fromisoformat(departure_date)
+        except:
+          pass
+
+      pilot_name = optional_input("Pilot Full Name: ")
+      if pilot_name:
+        search["includes_pilot_full_name"] = pilot_name
+
+      pilot_license = optional_input("Pilot License Number: ")
+      if pilot_license:
+        search["pilot_license_number"] = pilot_license
+
+      flight_hours = optional_input("Minimum Pilot Flight Hours: ")
+      if flight_hours:
+        try:
+          search["from_pilot_flight_hours"] = float(flight_hours)
+        except:
+          pass
+
+      origin_airport = optional_input("Origin Airport Code: ")
+      if origin_airport:
+        search["origin_airport_code"] = origin_airport.upper()
+
+      origin_country = optional_input("Origin Country Code: ")
+      if origin_country:
+        search["origin_country_code"] = origin_country.upper()
+
+      destination_airport = optional_input("Destination Airport Code: ")
+      if destination_airport:
+        search["destination_airport_code"] = destination_airport.upper()
+
+      destination_country = optional_input("Destination Country Code: ")
+      if destination_country:
+        search["destination_country_code"] = destination_country.upper()
 
     print("""
 Flight View field names:
@@ -59,15 +127,11 @@ Flight View field names:
 Type the fields, separated by spaces, to be displayed in the table.
 Pressing Enter without inserting any input displays all the fields.
     """)
-    raw_input = input("Field names: ").strip()
-    if raw_input:
-      search["projection"] = re.split(r"\s+", raw_input)
-    print()
-    search_flights = SearchFlightsDBOperation(search)
-    print("SQL Query:\n")
-    print(search_flights.query, "\n")
-    search_flights.execute_transaction()
-    print_table(search_flights.query_result, search.get("projection", []))
+    projection = optional_input("Field names: ")
+    if projection:
+      search["projection"] = re.split(r"\s+", projection)
+
+    return search
 
 
 # Menu option that exits the application.

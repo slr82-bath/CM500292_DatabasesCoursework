@@ -37,3 +37,10 @@ def print_table(objects: List, columns: Optional[List[str]]):
         for h in headers:
             print(f"{str(getattr(obj, h)):<{max_len[h]}}", end="")
         print()
+
+def optional_input(prompt: str) -> Optional[str]:
+    """
+    Returns None if user enters empty input.
+    """
+    value = input(prompt).strip()
+    return value if value else None

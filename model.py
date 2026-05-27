@@ -196,7 +196,7 @@ class FlightSearch(TypedDict):
     projection: NotRequired[List[str]]
     flight_id: NotRequired[int]
     flight_number: NotRequired[str]
-    status: NotRequired[FlightStatus]
+    status: NotRequired[str]
     date_of_departure: NotRequired[date]
     includes_pilot_full_name: NotRequired[str]
     pilot_license_number: NotRequired[str]
