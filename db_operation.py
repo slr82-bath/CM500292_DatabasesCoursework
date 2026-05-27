@@ -62,11 +62,11 @@ class DBOperation(ABC):
 # - Creating the schema
 # - Populating initial data
 class InitializeAirlineSchemaDBOperation(DBOperation):
-  def __init__(self, tables: List[str]):
+  # Names of all required schema tables.
+  __table_names = ["PILOT", "COUNTRY", "AIRPORT", "FLIGHT"]
+  
+  def __init__(self):
     super().__init__()
-
-    # List of expected tables used to verify initialization.
-    self.__tables = tables
 
   # Executes schema initialization only if the
   # database has not already been initialized.
@@ -85,8 +85,8 @@ class InitializeAirlineSchemaDBOperation(DBOperation):
                 SELECT SUM(1)
                   FROM sqlite_schema
                   WHERE type = 'table'
-                    AND name IN {tuple(self.__tables)}
-              ) = {len(self.__tables)};
+                    AND name IN {tuple(self.__table_names)}
+              ) = {len(self.__table_names)};
     """)
 
     # Returns True if all expected tables exist.
@@ -159,15 +159,28 @@ class SearchFlightsDBOperation(DBOperation):
 
     query = f"SELECT {projection} FROM FLIGHT AS f{self.__PROJECTION_REPLACE_KEY}"
 
-    if "flight_id" in search:
+    if "flight_id" in search and search["flight_id"] is not None:
       query = f"{query} WHERE f.FlightID = {search["flight_id"]}"
-    if "flight_number" in search:
+    if "flight_number" in search and search["flight_number"]:
       query = f"{query} WHERE f.FlightNumber = '{search["flight_number"]}'"
-    if "status" in search and search["status"]:
+    if "status" in search and search["status"] is not None:
       query = f"{query} WHERE f.Status = '{search["status"].value}'"
-    
-    if "includes_pilot_full_name" in search and len(search["includes_pilot_full_name"]) > 0:
+    if "date_of_departure" in search and search["date_of_departure"] is not None:
+      query = f"{query} WHERE DATE(f.Departure) = DATE('{search["date_of_departure"]}')"    
+    if "includes_pilot_full_name" in search and search["includes_pilot_full_name"]:
       query = f"{query} WHERE p.FullName LIKE '%{search["includes_pilot_full_name"]}%'"
+    if "pilot_license_number" in search and search["pilot_license_number"]:
+      query = f"{query} WHERE p.LicenseNumber = '{search["pilot_license_number"]}'"
+    if "from_pilot_flight_hours" in search and search["from_pilot_flight_hours"]:
+      query = f"{query} WHERE p.FlightHours > {search["from_pilot_flight_hours"]}"
+    if "origin_airport_code" in search and search["origin_airport_code"]:
+      query = f"{query} WHERE o.AirportCode = '{search["origin_airport_code"]}'"
+    if "origin_country_code" in search and search["origin_country_code"]:
+      query = f"{query} WHERE co.CountryCode = '{search["origin_country_code"]}'"
+    if "destination_airport_code" in search and search["destination_airport_code"]:
+      query = f"{query} WHERE d.AirportCode = '{search["destination_airport_code"]}'"
+    if "destination_country_code" in search and search["destination_country_code"]:
+      query = f"{query} WHERE cd.CountryCode = '{search["destination_country_code"]}'"
     
     join_tables = ""
     if "p." in query:

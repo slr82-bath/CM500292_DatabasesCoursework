@@ -1,6 +1,7 @@
 from typing import List
 from abc import ABC, abstractmethod
 from db_operation import InitializeAirlineSchemaDBOperation, SearchFlightsDBOperation
+from model import FlightSearch
 from utils import print_table
 import re
 
@@ -24,6 +25,7 @@ class MenuOption(ABC):
 
 # Menu option that triggers flight searching.
 class SearchFlightsMenuOption(MenuOption):
+
   def __init__(self):
     super().__init__()
 
@@ -32,6 +34,10 @@ class SearchFlightsMenuOption(MenuOption):
 
   # Execute the associated database operation.
   def execute_option(self):
+    print()
+
+    search: FlightSearch = {}
+
     print("""
 Flight View field names:
   flight_id
@@ -53,16 +59,15 @@ Flight View field names:
 Type the fields, separated by spaces, to be displayed in the table.
 Pressing Enter without inserting any input displays all the fields.
     """)
-    query_projection = None
     raw_input = input("Field names: ").strip()
     if raw_input:
-      query_projection = re.split(r"\s+", raw_input)
+      search["projection"] = re.split(r"\s+", raw_input)
     print()
-    search_flights = SearchFlightsDBOperation(query_projection)
+    search_flights = SearchFlightsDBOperation(search)
     print("SQL Query:\n")
     print(search_flights.query, "\n")
     search_flights.execute_transaction()
-    print_table(search_flights.query_result, query_projection)
+    print_table(search_flights.query_result, search.get("projection", []))
 
 
 # Menu option that exits the application.
@@ -115,11 +120,8 @@ class Menu:
     menu_option.execute_option()
 
 
-# Names of all required schema tables.
-table_names = ["PILOT", "COUNTRY", "AIRPORT", "FLIGHT"]
-
 # Create schema and seed database if needed.
-InitializeAirlineSchemaDBOperation(table_names).execute_transaction()
+InitializeAirlineSchemaDBOperation().execute_transaction()
 
 # Create the command-line menu.
 menu = Menu()

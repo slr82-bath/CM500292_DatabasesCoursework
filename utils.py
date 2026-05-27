@@ -10,8 +10,9 @@ def print_table(objects: List, columns: Optional[List[str]]):
 
     # Get headers from object properties
     headers = list(objects[0].__dict__.keys())
-    # Filter headers if columns is present
-    if columns is not None:
+
+    # Filter headers if columns are present and not empty
+    if columns is not None and len(columns):
         headers = list(filter(lambda item: item in columns, headers))
 
     max_len = {h: len(h) + padding for h in headers}
