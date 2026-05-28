@@ -1,7 +1,7 @@
 import sqlite3
 from typing import List
 from abc import ABC, abstractmethod
-from model import FlightView, FlightSearch
+from model import FlightView, FlightSearch, PilotView
 
 
 # Abstract base class that defines the common structure
@@ -81,13 +81,13 @@ class InitializeAirlineSchemaDBOperation(DBOperation):
 
         # Query sqlite_schema to count matching tables.
         self._cursor.execute(f"""
-      SELECT (
+            SELECT (
                 SELECT SUM(1)
-                  FROM sqlite_schema
-                  WHERE type = 'table'
+                FROM sqlite_schema
+                WHERE type = 'table'
                     AND name IN {tuple(self.__table_names)}
-              ) = {len(self.__table_names)};
-    """)
+            ) = {len(self.__table_names)};
+        """)
 
         # Returns True if all expected tables exist.
         return self._cursor.fetchone()[0]
@@ -269,3 +269,36 @@ class SearchFlightsDBOperation(DBOperation):
         columns = [col[0] for col in self._cursor.description]
         for row in self._cursor.fetchall():
             self.__result.append(FlightView(**dict(zip(columns, row))))
+
+
+class FindPilotByLicenseNumber(DBOperation):
+    def __init__(self, license_number: str):
+        super().__init__()
+        self.__query = f"""SELECT PilotID as pilot_id, 
+            FullName as full_name,
+            LicenseNumber as license_number,
+            ContactNumber as contact_number,
+            FlightHours as flight_hours  
+            FROM PILOT WHERE LicenseNumber = '{license_number}';"""
+        self.__result = None
+
+    @property
+    def query_result(self) -> PilotView | None:
+        return self.__result
+
+    @property
+    def query(self) -> str:
+        return self.__query
+
+    def _execute(self):
+        self.__result = None
+
+        self._cursor.execute(self.__query)
+
+        result = self._cursor.fetchone()
+
+        if not result:
+            return
+
+        columns = [col[0] for col in self._cursor.description]
+        self.__result = PilotView(**dict(zip(columns, result)))

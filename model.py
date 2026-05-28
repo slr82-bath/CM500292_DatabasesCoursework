@@ -186,18 +186,43 @@ class FlightView:
             self.status = FlightStatus(status).label
         self.departure = departure
         self.arrival = arrival
-        self.pilot_full_name = pilot_full_name
-        self.pilot_license_number = None
-        if pilot_license_number:
-            self.pilot_license_number = f"LN{pilot_license_number}"
-        self.pilot_contact_number = pilot_contact_number
-        self.pilot_flight_hours = pilot_flight_hours
+        pilot_view = PilotView(
+            full_name=pilot_full_name,
+            license_number=pilot_license_number,
+            contact_number=pilot_contact_number,
+            flight_hours=pilot_flight_hours,
+        )
+        self.pilot_full_name = pilot_view.full_name
+        self.pilot_license_number = pilot_view.license_number
+        self.pilot_contact_number = pilot_view.contact_number
+        self.pilot_flight_hours = pilot_view.flight_hours
         self.origin_airport_code = origin_airport_code
         self.origin_airport_name = origin_airport_name
         self.origin_country = origin_country
         self.destination_airport_code = destination_airport_code
         self.destination_airport_name = destination_airport_name
         self.destination_country = destination_country
+
+
+# PilotView class -> Embodies all pilot related data for viewing
+class PilotView:
+    def __init__(
+        self,
+        pilot_id: Optional[int] = None,
+        full_name: Optional[str] = None,
+        license_number: Optional[str] = None,
+        contact_number: Optional[str] = None,
+        flight_hours: Optional[str] = None,
+    ):
+        self.pilot_id = None
+        if pilot_id:
+            self.pilot_id = str(pilot_id)
+        self.full_name = full_name
+        self.license_number = None
+        if license_number:
+            self.license_number = f"LN{license_number}"
+        self.contact_number = contact_number
+        self.flight_hours = flight_hours
 
 
 # FlightSearch class -> Configures the flight query

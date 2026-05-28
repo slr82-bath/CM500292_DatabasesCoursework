@@ -1,6 +1,10 @@
 from typing import List
 from abc import ABC, abstractmethod
-from db_operation import InitializeAirlineSchemaDBOperation, SearchFlightsDBOperation
+from db_operation import (
+    InitializeAirlineSchemaDBOperation,
+    SearchFlightsDBOperation,
+    FindPilotByLicenseNumber,
+)
 from model import FlightSearch, FlightStatus
 from utils import print_table, optional_input, print_sql_script
 from datetime import date
@@ -43,6 +47,9 @@ class SearchFlightsMenuOption(MenuOption):
         print_sql_script(search_flights.query)
         print()
         search_flights.execute_transaction()
+        if not search_flights.query_result:
+            print("Empty flight search result.")
+            return
         print_table(search_flights.query_result, search.get("projection", []))
 
     def __scan_flight_search(self) -> FlightSearch:
@@ -160,6 +167,55 @@ Press Enter without inserting any input to not apply any ordering.
         return search
 
 
+class ViewPilotScheduleMenuOption(MenuOption):
+    def __init__(self):
+        super().__init__()
+        self._name = "View Pilot Schedule"
+
+    def execute_option(self):
+        print()
+        print("An invalid or blank input will be ignored.")
+        license_number = optional_input("Pilot license number (LN9999): ")
+        if not license_number or not re.fullmatch(r"LN[0-9]{4}", license_number):
+            return
+        print()
+        license_number = license_number[2:]
+        pilot_search = FindPilotByLicenseNumber(license_number)
+        print("SQL Query:\n")
+        print_sql_script(pilot_search.query)
+        print()
+        pilot_search.execute_transaction()
+        pilot = pilot_search.query_result
+        if not pilot:
+            print(f"There is not a pilot with the license number LN{license_number}.")
+            return
+        search: FlightSearch = {}
+        search["pilot_license_number"] = license_number
+        search["status"] = FlightStatus.SCHEDULED
+        search["projection"] = [
+            "departure",
+            "arrival",
+            "origin_airport_code",
+            "origin_country",
+            "destination_airport_code",
+            "destination_country",
+        ]
+        search["order"] = [("departure", "asc")]
+        search_flights = SearchFlightsDBOperation(search)
+        print("SQL Query:\n")
+        print_sql_script(search_flights.query)
+        print()
+        search_flights.execute_transaction()
+        print(f"""Pilot: {pilot.full_name} ({pilot.license_number})
+Contact number: {pilot.contact_number if pilot.contact_number else "Not provided"}
+Experience (total flight hours): {pilot.flight_hours}
+        """)
+        if not search_flights.query_result:
+            print(f"The pilot does not have any scheduled flights.")
+            return
+        print_table(search_flights.query_result, search.get("projection", []))
+
+
 # Menu option that exits the application.
 class ExitMenuOption(MenuOption):
     def __init__(self):
@@ -218,6 +274,7 @@ menu = Menu()
 
 # Register menu options.
 menu.add_option(SearchFlightsMenuOption())
+menu.add_option(ViewPilotScheduleMenuOption())
 menu.add_option(ExitMenuOption())
 
 
