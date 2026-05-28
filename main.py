@@ -58,16 +58,19 @@ class SearchFlightsMenuOption(MenuOption):
                 except:
                     pass
 
-            flight_number = optional_input("Flight number: ")
-            if flight_number:
-                search["flight_number"] = flight_number
+            flight_number = optional_input("Flight number (F999999): ")
+            if flight_number and re.fullmatch(r"F[0-9]{6}", flight_number):
+                search["flight_number"] = flight_number[1:]
 
             print("Available statuses:")
             for status in FlightStatus:
                 print(f"{status.value} - {status.label}")
             status_input = optional_input("Flight status: ")
             if status_input:
-                search["status"] = status_input.upper()
+                try:
+                    search["status"] = FlightStatus(status_input.upper())
+                except:
+                    pass
 
             departure_date = optional_input("Departure date (YYYY-MM-DD): ")
             if departure_date:
@@ -76,13 +79,15 @@ class SearchFlightsMenuOption(MenuOption):
                 except:
                     pass
 
-            pilot_name = optional_input("Pilot name (search by names that contain the string): ")
+            pilot_name = optional_input(
+                "Pilot name (includes all names that contain the string): "
+            )
             if pilot_name:
                 search["includes_pilot_full_name"] = pilot_name
 
-            pilot_license = optional_input("Pilot license number: ")
-            if pilot_license:
-                search["pilot_license_number"] = pilot_license
+            pilot_license = optional_input("Pilot license number (LN9999): ")
+            if pilot_license and re.fullmatch(r"LN[0-9]{4}", pilot_license):
+                search["pilot_license_number"] = pilot_license[2:]
 
             flight_hours = optional_input("Minimum pilot flight hours (float number): ")
             if flight_hours:
@@ -108,7 +113,7 @@ class SearchFlightsMenuOption(MenuOption):
                 search["destination_country_code"] = destination_country.upper()
 
         print("""
-Flight View field names:
+Flight column names:
   flight_id
   flight_number
   status
@@ -125,12 +130,32 @@ Flight View field names:
   destination_airport_name
   destination_country
 
-Type the fields, separated by spaces, to be displayed in the table.
-Pressing Enter without inserting any input displays all the fields.
+Type the columns, separated by spaces, to be displayed in the table.
+Press Enter without inserting any input to displays all the columns.
     """)
-        projection = optional_input("Field names: ")
+        projection = optional_input("Column names: ")
         if projection:
             search["projection"] = re.split(r"\s+", projection)
+
+        print("""
+Type the + or - symbol followed by a column names, separated by spaces, to apply hierarchical ordering onto the search.
+The symbol before the column name defines the order direction (+ for ascending, - for descending).
+Press Enter without inserting any input to not apply any ordering.
+    """)
+        orders = optional_input("Orders: ")
+        if orders:
+            order_matchs = [
+                (re.search(r"[+-]{1}", order), order)
+                for order in re.split(r"\s+", orders)
+            ]
+            search["order"] = [
+                (
+                    (order[1:], "desc" if match.group() == "-" else "asc")
+                    if match and match.span() == (0, 1)
+                    else (order, "asc")
+                )
+                for match, order in order_matchs
+            ]
 
         return search
 

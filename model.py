@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime, date
-from typing import Optional, TypedDict, NotRequired, List
+from typing import Optional, TypedDict, NotRequired, List, Literal
 from enum import Enum
 import re
 
@@ -178,14 +178,18 @@ class FlightView:
         self.flight_id = None
         if flight_id:
             self.flight_id = str(flight_id)
-        self.flight_number = flight_number
+        self.flight_number = None
+        if flight_number:
+            self.flight_number = f"F{flight_number}"
         self.status = None
         if status:
             self.status = FlightStatus(status).label
         self.departure = departure
         self.arrival = arrival
         self.pilot_full_name = pilot_full_name
-        self.pilot_license_number = pilot_license_number
+        self.pilot_license_number = None
+        if pilot_license_number:
+            self.pilot_license_number = f"LN{pilot_license_number}"
         self.pilot_contact_number = pilot_contact_number
         self.pilot_flight_hours = pilot_flight_hours
         self.origin_airport_code = origin_airport_code
@@ -201,7 +205,7 @@ class FlightSearch(TypedDict):
     projection: NotRequired[List[str]]
     flight_id: NotRequired[int]
     flight_number: NotRequired[str]
-    status: NotRequired[str]
+    status: NotRequired[FlightStatus]
     departure_date: NotRequired[date]
     includes_pilot_full_name: NotRequired[str]
     pilot_license_number: NotRequired[str]
@@ -210,3 +214,4 @@ class FlightSearch(TypedDict):
     origin_country_code: NotRequired[str]
     destination_airport_code: NotRequired[str]
     destination_country_code: NotRequired[str]
+    order: NotRequired[List[tuple[str, Literal["asc", "desc"]]]]

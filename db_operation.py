@@ -130,22 +130,22 @@ class InitializeAirlineSchemaDBOperation(DBOperation):
 class SearchFlightsDBOperation(DBOperation):
     __COMMA_SEP = ", "
     __PROJECTION_REPLACE_KEY = "==PROJECTION=="
-    __FIELD_NAME_MAP = {
-        "flight_id": "f.FlightID as flight_id",
-        "flight_number": "f.FlightNumber as flight_number",
-        "status": "f.Status as status",
-        "departure": "f.Departure as departure",
-        "arrival": "f.Arrival as arrival",
-        "pilot_full_name": "p.FullName as pilot_full_name",
-        "pilot_license_number": "p.LicenseNumber as pilot_license_number",
-        "pilot_contact_number": "p.ContactNumber as pilot_contact_number",
-        "pilot_flight_hours": "p.FlightHours as pilot_flight_hours",
-        "origin_airport_code": "o.AirportCode as origin_airport_code",
-        "origin_airport_name": "o.AirportName as origin_airport_name",
-        "origin_country": "co.CountryName as origin_country",
-        "destination_airport_code": "d.AirportCode as destination_airport_code",
-        "destination_airport_name": "d.AirportName as destination_airport_name",
-        "destination_country": "cd.CountryName as destination_country",
+    __COLUMN_NAME_MAP = {
+        "flight_id": "f.FlightID",
+        "flight_number": "f.FlightNumber",
+        "status": "f.Status",
+        "departure": "f.Departure",
+        "arrival": "f.Arrival",
+        "pilot_full_name": "p.FullName",
+        "pilot_license_number": "p.LicenseNumber",
+        "pilot_contact_number": "p.ContactNumber",
+        "pilot_flight_hours": "p.FlightHours",
+        "origin_airport_code": "o.AirportCode",
+        "origin_airport_name": "o.AirportName",
+        "origin_country": "co.CountryName",
+        "destination_airport_code": "d.AirportCode",
+        "destination_airport_name": "d.AirportName",
+        "destination_country": "cd.CountryName",
     }
 
     __result: List[FlightView] = []
@@ -153,10 +153,12 @@ class SearchFlightsDBOperation(DBOperation):
     def __init__(self, search: FlightSearch):
         super().__init__()
 
-        projection = self.__COMMA_SEP.join(list(self.__FIELD_NAME_MAP.values()))
+        projection = self.__COMMA_SEP.join(
+            [f"{value} as {key}" for key, value in self.__COLUMN_NAME_MAP.items()]
+        )
         if "projection" in search and len(search["projection"]) > 0:
             projection = self.__COMMA_SEP.join(
-                [self.__FIELD_NAME_MAP[p] for p in search["projection"]]
+                [f"{self.__COLUMN_NAME_MAP[p]} as {p}" for p in search["projection"]]
             )
 
         query = f"SELECT {projection} FROM FLIGHT AS f{self.__PROJECTION_REPLACE_KEY}"
@@ -171,7 +173,7 @@ class SearchFlightsDBOperation(DBOperation):
             )
             filter_clause = "AND"
         if "status" in search and search["status"] is not None:
-            query = f"{query} {filter_clause} f.Status = '{search["status"]}'"
+            query = f"{query} {filter_clause} f.Status = '{search["status"].value}'"
             filter_clause = "AND"
         if "departure_date" in search and search["departure_date"] is not None:
             query = f"{query} {filter_clause} DATE(f.Departure) = DATE('{search["departure_date"]}')"
@@ -217,6 +219,15 @@ class SearchFlightsDBOperation(DBOperation):
             and search["destination_country_code"] is not None
         ):
             query = f"{query} {filter_clause} cd.CountryCode = '{search["destination_country_code"]}'"
+
+        if "order" in search and search["order"]:
+            query_order = self.__COMMA_SEP.join(
+                [
+                    f"{self.__COLUMN_NAME_MAP[field]} {direction}"
+                    for field, direction in search["order"]
+                ]
+            )
+            query = f"{query} ORDER BY {query_order}"
 
         join_tables = ""
         if "p." in query:
