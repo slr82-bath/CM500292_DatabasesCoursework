@@ -22,137 +22,214 @@ class FlightStatus(Enum):
         }[self]
 
 
-# Airport class -> Ensures insertion of valid data
-@dataclass(frozen=True)
-class Airport:
-    airport_code: str
-    airport_name: str
-    country_id: int
-
-    def __post_init__(self):
-        validations: List[str] = []
-
-        # Validade if airport code is present
-        if self.airport_code is None:
-            validations.append("airport code must be a present")
-
-        # Validade if airport code follows IATA standards
-        if re.fullmatch(self.airport_code, r"[A-Z]{3}"):
-            validations.append("airport code must be a IATA code")
-
-        # Validade if airport name is present
-        if self.airport_name is None or len(self.airport_name) < 1:
-            validations.append("airport name must be a present")
-
-        # Validade if country is present
-        if self.country_id is None:
-            validations.append("country must be a present")
-
-        # Raise error with all validations that failed if the object is not valid
-        if len(validations) > 0:
-            raise ValueError("\n".join(validations))
+class FlightValidationError(ValueError):
+    pass
 
 
-# Pilot class -> Ensures insertion of valid data
-@dataclass(frozen=True)
-class Pilot:
-    full_name: str
-    contact_number: Optional[str]
-    license_number: str
-    flight_hours: float
-
-    def __post_init__(self):
-        validations: List[str] = []
-
-        # Validade if full name is present
-        if self.full_name is None or len(self.full_name) < 1:
-            validations.append("full name must be a present")
-
-        # Validade if license number is present
-        if self.license_number is None:
-            validations.append("license number must be a present")
-
-        # Validade if license number follows the common standards
-        if re.fullmatch(self.license_number, r"[0-9]{4}"):
-            validations.append("license number must have 4 numerical digits")
-
-        # Validade if flight hours is present
-        if self.flight_hours is None:
-            validations.append("flight hours must be a present")
-
-        # Enforce positive numerical values for flight hours
-        if self.flight_hours < 0:
-            validations.append("flight hours cannot be negative")
-
-        # Raise error with all validations that failed if the object is not valid
-        if len(validations) > 0:
-            raise ValueError("\n".join(validations))
-
-
-# Flight class -> Ensures insertion of valid data
-@dataclass(frozen=True)
 class Flight:
-    flight_number: str
-    status: FlightStatus
-    departure: datetime
-    arrival: datetime
-    pilot_id: Optional[int]
-    origin_id: int
-    destination_id: int
+    FLIGHT_NUMBER_PATTERN = re.compile(r"^F\d{6}$")
+    _validations: List[str]
 
-    def __post_init__(self):
-        validations: List[str] = []
+    def __init__(
+        self,
+        *,
+        flight_id: Optional[int] = None,
+        flight_number: Optional[str] = None,
+        departure: Optional[datetime] = None,
+        arrival: Optional[datetime] = None,
+        origin_id: Optional[int] = None,
+        destination_id: Optional[int] = None,
+        status: Optional[FlightStatus] = None,
+        pilot_id: Optional[int] = None,
+    ):
+        self._validations = []
 
-        # Validade if flight number is present
-        if self.flight_number is None:
-            validations.append("flight number must be a present")
+        self._flight_id = flight_id
+        self._validate_flight_number(flight_number)
+        if flight_number:
+            self._flight_number = flight_number
+        self._validate_schedule(departure, arrival)
+        if departure and arrival:
+            self._departure = departure
+            self._arrival = arrival
+        self._validate_airports(origin_id, destination_id)
+        if origin_id and destination_id:
+            self._origin_id = origin_id
+            self._destination_id = destination_id
+        self._validate_status(status)
+        if status:
+            self._status = status
+        self._pilot_id = pilot_id
 
-        # Validade if flight number follows the common standards
-        if re.fullmatch(self.flight_number, r"[0-9]{6}"):
-            validations.append("flight number must have 6 numerical digits")
+        self._validate_status_and_pilot_id()
 
-        # Validade if departure is present
-        if self.departure is None:
-            validations.append("departure must be a present")
+        self.validate()
 
-        # Validade if arrival is present
-        if self.arrival is None:
-            validations.append("arrival must be a present")
+    @classmethod
+    def from_db_fetch(
+        cls,
+        *,
+        flight_id: int,
+        flight_number: str,
+        departure: str,
+        arrival: str,
+        origin_id: int,
+        destination_id: int,
+        status: str,
+        pilot_id: Optional[int],
+    ):
+        return cls(
+            flight_id=flight_id,
+            flight_number=f"F{flight_number}",
+            departure=datetime.strptime(departure, "%Y-%m-%d %H:%M:%S"),
+            arrival=datetime.strptime(arrival, "%Y-%m-%d %H:%M:%S"),
+            origin_id=origin_id,
+            destination_id=destination_id,
+            status=FlightStatus(status),
+            pilot_id=pilot_id if pilot_id else None,
+        )
 
-        # Enforce logically accepted time interval between arrival and departure times
-        if self.arrival <= self.departure:
-            validations.append("arrival cannot be earlier than or equal to departure")
+    @property
+    def flight_id(self) -> Optional[int]:
+        return self._flight_id
 
-        # Validade if origin is present
-        if self.origin_id is None:
-            validations.append("origin must be a present")
+    @property
+    def flight_number(self) -> str:
+        return self._flight_number
 
-        # Validade if destination is present
-        if self.destination_id is None:
-            validations.append("destination must be a present")
+    @property
+    def departure(self) -> datetime:
+        return self._departure
 
-        # Validade if status is present
-        if self.status is None:
-            validations.append("status must be a present")
+    @property
+    def arrival(self) -> datetime:
+        return self._arrival
 
-        # Validate if status was set as an invalid string
-        try:
-            FlightStatus(self.status)
-        except:
-            validations.append("status string value must be one of 'S', 'O', and 'T'")
+    @property
+    def origin_id(self) -> int:
+        return self._origin_id
 
-        # Enforce pilot assignment when flight status is not scheduled
+    @property
+    def destination_id(self) -> int:
+        return self._destination_id
+
+    @property
+    def status(self) -> FlightStatus:
+        return self._status
+
+    @property
+    def pilot_id(self) -> Optional[int]:
+        return self._pilot_id
+
+    def validate(self) -> None:
+        if self._validations:
+            raise FlightValidationError("\n".join(self._validations))
+        self._validations = []
+
+    def assign_pilot(self, pilot_id: Optional[int]) -> None:
+        if not pilot_id:
+            self._validations.append("pilot_id must be present")
+            self.validate()
+            return
+
+        if pilot_id <= 0:
+            self._validations.append("pilot_id must be positive")
+
+        self.validate()
+
+        self._pilot_id = pilot_id
+
+    def update_schedule(
+        self,
+        departure: Optional[datetime],
+        arrival: Optional[datetime],
+    ) -> None:
+        self._validate_schedule(departure, arrival)
+
+        if self._status == FlightStatus.TERMINATED:
+            self._validations.append("Cannot modify terminated flight")
+
+        self.validate()
+
+        if departure and arrival:
+            self._departure = departure
+            self._arrival = arrival
+
+    def start_operation(self) -> None:
+        if self._status != FlightStatus.SCHEDULED:
+            self._validations.append("Only scheduled flights can start operation")
+
+        if self._pilot_id is None:
+            self._validations.append("Operational flight requires a pilot")
+
+        self.validate()
+
+        self._status = FlightStatus.OPERATIONAL
+
+    def terminate(self) -> None:
+        if self._status != FlightStatus.OPERATIONAL:
+            self._validations.append("Only operational flights can terminate")
+
+        self.validate()
+
+        self._status = FlightStatus.TERMINATED
+
+    def _validate_flight_number(self, flight_number: Optional[str]) -> None:
+        if not flight_number:
+            self._validations.append("flight number must be present")
+            return
+
+        if not self.FLIGHT_NUMBER_PATTERN.fullmatch(flight_number):
+            self._validations.append("flight number must follow F999999 pattern")
+
+    def _validate_status(self, status: Optional[FlightStatus]) -> None:
+        if not status:
+            self._validations.append("status must be present")
+
+    def _validate_schedule(
+        self,
+        departure: Optional[datetime],
+        arrival: Optional[datetime],
+    ) -> None:
+        if departure is None:
+            self._validations.append("departure must be present")
+            return
+
+        if arrival is None:
+            self._validations.append("arrival must be present")
+            return
+
+        if arrival <= departure:
+            self._validations.append("arrival must be later than departure")
+
+    def _validate_airports(
+        self,
+        origin_id: Optional[int],
+        destination_id: Optional[int],
+    ) -> None:
+        if origin_id is None:
+            self._validations.append("origin must be present")
+            return
+
+        if destination_id is None:
+            self._validations.append("destination must be present")
+            return
+
+        if origin_id == destination_id:
+            self._validations.append("origin and destination cannot be equal")
+
+    def _validate_status_and_pilot_id(self) -> None:
         if (
-            self.status in {FlightStatus.OPERATIONAL, FlightStatus.TERMINATED}
-            and self.pilot_id is None
+            self._status
+            in {
+                FlightStatus.OPERATIONAL,
+                FlightStatus.TERMINATED,
+            }
+            and self._pilot_id is None
         ):
-            validations.append(
-                "operational or terminated flights must have a pilot assigned"
+            self._validations.append(
+                "operational or terminated flights require a pilot"
             )
-
-        # Raise error with all validations that failed if the object is not valid
-        if len(validations) > 0:
-            raise ValueError("\n".join(validations))
 
 
 # FlightView class -> Embodies all flight related data for viewing

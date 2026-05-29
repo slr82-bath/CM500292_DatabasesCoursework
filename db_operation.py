@@ -1,7 +1,7 @@
 import sqlite3
-from typing import List
+from typing import List, Optional
 from abc import ABC, abstractmethod
-from model import FlightView, FlightSearch, PilotView
+from model import FlightView, FlightSearch, PilotView, Flight
 
 
 # Abstract base class that defines the common structure
@@ -40,6 +40,7 @@ class DBOperation(ABC):
             # Undo all changes if an error occurs.
             self.__connection.rollback()
             print(e)
+            raise e
 
         finally:
             # Always close the database connection, if present.
@@ -61,7 +62,7 @@ class DBOperation(ABC):
 # Database operation responsible for:
 # - Creating the schema
 # - Populating initial data
-class InitializeAirlineSchemaDBOperation(DBOperation):
+class InitializeAirlineSchema(DBOperation):
     # Names of all required schema tables.
     __table_names = ["PILOT", "COUNTRY", "AIRPORT", "FLIGHT"]
 
@@ -127,7 +128,7 @@ class InitializeAirlineSchemaDBOperation(DBOperation):
 
 
 # Database operation that retrieves all flights.
-class SearchFlightsDBOperation(DBOperation):
+class SearchFlights(DBOperation):
     __COMMA_SEP = ", "
     __PROJECTION_REPLACE_KEY = "==PROJECTION=="
     __COLUMN_NAME_MAP = {
@@ -283,7 +284,7 @@ class FindPilotByLicenseNumber(DBOperation):
         self.__result = None
 
     @property
-    def query_result(self) -> PilotView | None:
+    def query_result(self) -> Optional[PilotView]:
         return self.__result
 
     @property
@@ -302,3 +303,89 @@ class FindPilotByLicenseNumber(DBOperation):
 
         columns = [col[0] for col in self._cursor.description]
         self.__result = PilotView(**dict(zip(columns, result)))
+
+
+class FindFlightByID(DBOperation):
+    def __init__(self, flight_id: int):
+        super().__init__()
+        self.__query = f"""SELECT FlightID as flight_id,
+        FlightNumber as flight_number,
+        Status as status,
+        Departure as departure,
+        Arrival as arrival,
+        PilotID as pilot_id,
+        OriginID as origin_id,
+        DestinationID as destination_id
+        FROM FLIGHT WHERE FlightID = {flight_id};"""
+        self.__result = None
+
+    @property
+    def query_result(self) -> Optional[Flight]:
+        return self.__result
+
+    def _execute(self):
+        self.__result = None
+
+        self._cursor.execute(self.__query)
+
+        result = self._cursor.fetchone()
+
+        if not result:
+            return
+
+        columns = [col[0] for col in self._cursor.description]
+        self.__result = Flight.from_db_fetch(**dict(zip(columns, result)))
+
+
+class CreateFlight(DBOperation):
+    def __init__(self, flight: Flight):
+        super().__init__()
+        self.__sql_script = """INSERT INTO FLIGHT 
+        (FlightNumber, Status, Departure, Arrival, PilotID, OriginID, DestinationID)
+        VALUES (?, ?, ?, ?, ?, ?, ?)"""
+        self.__flight = flight
+        self.__created_flight_id = None
+
+    @property
+    def created_flight_id(self) -> Optional[int]:
+        return self.__created_flight_id
+
+    def _execute(self):
+        self._cursor.execute(
+            self.__sql_script,
+            (
+                self.__flight.flight_number[1:],
+                self.__flight.status.value,
+                self.__flight.departure,
+                self.__flight.arrival,
+                self.__flight.pilot_id,
+                self.__flight.origin_id,
+                self.__flight.destination_id,
+            ),
+        )
+
+        self.__created_flight_id = self._cursor.lastrowid
+
+
+class UpdateFlight(DBOperation):
+    def __init__(self, flight: Flight) -> None:
+        super().__init__()
+        self.__sql_script = """UPDATE FLIGHT SET 
+        FlightNumber = ?, Status = ?, Departure = ?, Arrival = ?, PilotID = ?, OriginID = ?, DestinationID = ?
+        WHERE FlightID = ?"""
+        self.__flight = flight
+
+    def _execute(self):
+        self._cursor.execute(
+            self.__sql_script,
+            (
+                self.__flight.flight_number[1:],
+                self.__flight.status.value,
+                self.__flight.departure,
+                self.__flight.arrival,
+                self.__flight.pilot_id,
+                self.__flight.origin_id,
+                self.__flight.destination_id,
+                self.__flight.flight_id,
+            ),
+        )

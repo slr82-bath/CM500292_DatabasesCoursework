@@ -1,13 +1,16 @@
-from typing import List
+from typing import List, Optional
 from abc import ABC, abstractmethod
 from db_operation import (
-    InitializeAirlineSchemaDBOperation,
-    SearchFlightsDBOperation,
+    InitializeAirlineSchema,
+    SearchFlights,
     FindPilotByLicenseNumber,
+    CreateFlight,
+    FindFlightByID,
+    UpdateFlight
 )
-from model import FlightSearch, FlightStatus
+from model import FlightSearch, FlightStatus, Flight
 from utils import print_table, optional_input, print_sql_script
-from datetime import date
+from datetime import date, datetime
 import re
 
 
@@ -42,7 +45,7 @@ class SearchFlightsMenuOption(MenuOption):
         print()
         search = self.__scan_flight_search()
         print()
-        search_flights = SearchFlightsDBOperation(search)
+        search_flights = SearchFlights(search)
         print("SQL Query:\n")
         print_sql_script(search_flights.query)
         print()
@@ -195,13 +198,13 @@ class ViewPilotScheduleMenuOption(MenuOption):
         search["projection"] = [
             "departure",
             "arrival",
-            "origin_airport_code",
+            "origin_airport_name",
             "origin_country",
-            "destination_airport_code",
+            "destination_airport_name",
             "destination_country",
         ]
         search["order"] = [("departure", "asc")]
-        search_flights = SearchFlightsDBOperation(search)
+        search_flights = SearchFlights(search)
         print("SQL Query:\n")
         print_sql_script(search_flights.query)
         print()
@@ -214,6 +217,198 @@ Experience (total flight hours): {pilot.flight_hours}
             print(f"The pilot does not have any scheduled flights.")
             return
         print_table(search_flights.query_result, search.get("projection", []))
+
+
+class NewFlightMenuOption(MenuOption):
+    def __init__(self):
+        super().__init__()
+        self._name = "Add a New Flight"
+
+    def execute_option(self):
+        flight = self.__create_flight_from_input()
+        if flight:
+            print()
+            create_flight = CreateFlight(flight)
+            create_flight.execute_transaction()
+            print(
+                f"Flight (ID: {create_flight.created_flight_id}) created successfully!"
+            )
+
+    def __create_flight_from_input(self) -> Optional[Flight]:
+        try:
+            flight_number = optional_input("Flight number: ")
+            print("Available statuses:")
+            for status in FlightStatus:
+                print(f"{status.value} - {status.label}")
+            status_input = optional_input("Status: ")
+            status = None
+            if status_input:
+                try:
+                    status = FlightStatus(status_input.upper())
+                except:
+                    pass
+            departure_input = optional_input("Departure datetime (YYYY-MM-DD HH:MM): ")
+            arrival_input = optional_input("Arrival datetime (YYYY-MM-DD HH:MM): ")
+            pilot_input = optional_input("Pilot ID (leave blank if none): ")
+            origin_input = optional_input("Origin ID: ")
+            destination_input = optional_input("Destination ID: ")
+
+            departure = (
+                datetime.strptime(departure_input, "%Y-%m-%d %H:%M")
+                if departure_input
+                else None
+            )
+            arrival = (
+                datetime.strptime(arrival_input, "%Y-%m-%d %H:%M")
+                if arrival_input
+                else None
+            )
+            pilot_id = int(pilot_input) if pilot_input else None
+            origin_id = int(origin_input) if origin_input else None
+            destination_id = int(destination_input) if destination_input else None
+
+            flight = Flight(
+                flight_number=flight_number,
+                status=status,
+                departure=departure,
+                arrival=arrival,
+                pilot_id=pilot_id,
+                origin_id=origin_id,
+                destination_id=destination_id,
+            )
+
+            return flight
+
+        except ValueError as e:
+            print("\nValidation errors:")
+            print(e)
+
+        except Exception as e:
+            print(f"\nUnexpected error: {e}")
+
+        return None
+
+
+class UpdateFlightScheduleMenuOption(MenuOption):
+    def __init__(self):
+        super().__init__()
+        self._name = "Update Flight Schedule"
+
+    def execute_option(self):
+        flight_id_input = optional_input("Flight ID: ")
+
+        if not flight_id_input:
+            return
+
+        flight_id = None
+
+        try:
+            flight_id = int(flight_id_input)
+
+        except:
+            pass
+
+        if not flight_id:
+            return
+
+        print()
+
+        find_flight_by_id = FindFlightByID(flight_id)
+        find_flight_by_id.execute_transaction()
+        flight = find_flight_by_id.query_result
+
+        if not flight:
+            print(f"The flight (ID: {flight_id}) does not exist.")
+            return
+
+        print(f"Flight Number: {flight.flight_number}")
+        print(f"Departure: {flight.departure.strftime("%Y-%m-%d %H:%M")}")
+        print(f"Arrival: {flight.arrival.strftime("%Y-%m-%d %H:%M")}")
+
+        try:
+            departure_input = optional_input("Departure (YYYY-MM-DD HH:MM): ")
+            arrival_input = optional_input("Arrival (YYYY-MM-DD HH:MM): ")
+            
+            departure = (
+                datetime.strptime(departure_input, "%Y-%m-%d %H:%M")
+                if departure_input
+                else None
+            )
+            arrival = (
+                datetime.strptime(arrival_input, "%Y-%m-%d %H:%M")
+                if arrival_input
+                else None
+            )
+
+            print()
+
+            flight.update_schedule(departure, arrival)
+
+            update_flight = UpdateFlight(flight)
+            update_flight.execute_transaction()
+            print("Flight schedule updated successfully!")
+
+        except ValueError as e:
+            print("\nValidation errors:")
+            print(e)
+
+        except Exception as e:
+            print(f"\nUnexpected error: {e}")
+
+
+class AssignPilotToFlightMenuOption(MenuOption):
+    def __init__(self):
+        super().__init__()
+        self._name = "Assign Pilot to Flight"
+
+    def execute_option(self):
+        flight_id_input = optional_input("Flight ID: ")
+
+        if not flight_id_input:
+            return
+
+        flight_id = None
+
+        try:
+            flight_id = int(flight_id_input)
+
+        except:
+            pass
+
+        if not flight_id:
+            return
+
+        print()
+
+        find_flight_by_id = FindFlightByID(flight_id)
+        find_flight_by_id.execute_transaction()
+        flight = find_flight_by_id.query_result
+
+        if not flight:
+            print(f"The flight (ID: {flight_id}) does not exist.")
+            return
+
+        print(f"Flight Number: {flight.flight_number}")
+        print(f"Pilot ID: {flight.pilot_id if flight.pilot_id else "Not assigned"}")
+
+        try:
+            pilot_input = optional_input("Pilot ID: ")
+            pilot_id = int(pilot_input) if pilot_input else None
+
+            print()
+
+            flight.assign_pilot(pilot_id)
+
+            update_flight = UpdateFlight(flight)
+            update_flight.execute_transaction()
+            print("Pilot assigned to flight successfully!")
+
+        except ValueError as e:
+            print("\nValidation errors:")
+            print(e)
+
+        except Exception as e:
+            print(f"\nUnexpected error: {e}")
 
 
 # Menu option that exits the application.
@@ -267,14 +462,17 @@ class Menu:
 
 
 # Create schema and seed database if needed.
-InitializeAirlineSchemaDBOperation().execute_transaction()
+InitializeAirlineSchema().execute_transaction()
 
 # Create the command-line menu.
 menu = Menu()
 
 # Register menu options.
+menu.add_option(NewFlightMenuOption())
 menu.add_option(SearchFlightsMenuOption())
+menu.add_option(UpdateFlightScheduleMenuOption())
 menu.add_option(ViewPilotScheduleMenuOption())
+menu.add_option(AssignPilotToFlightMenuOption())
 menu.add_option(ExitMenuOption())
 
 
