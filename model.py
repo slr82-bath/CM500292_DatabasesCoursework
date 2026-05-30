@@ -5,7 +5,8 @@ from enum import Enum
 import re
 
 
-# FlightStatus enum -> Represents the status property of the flight
+# Flight status codes used by the persistence layer.
+# The enum provides a type-safe representation within the domain model.
 class FlightStatus(Enum):
     SCHEDULED = "S"
     OPERATIONAL = "O"
@@ -13,8 +14,9 @@ class FlightStatus(Enum):
 
     @property
     def label(self):
-
-        # Return human-readable text in string format
+        """
+        Return a human-readable representation of the flight status.
+        """
         return {
             FlightStatus.SCHEDULED: "Scheduled",
             FlightStatus.OPERATIONAL: "Operational",
@@ -23,11 +25,19 @@ class FlightStatus(Enum):
 
 
 class FlightValidationError(ValueError):
+    """
+    Raised when one or more flight business rules are violated.
+    """
+
     pass
 
 
 class Flight:
+    # Flight numbers must follow the format:
+    # F123456 (letter F followed by exactly six digits).
     FLIGHT_NUMBER_PATTERN = re.compile(r"^F\d{6}$")
+
+    # Collects validation errors during object construction and state changes.
     _validations: List[str]
 
     def __init__(
@@ -42,6 +52,13 @@ class Flight:
         status: Optional[FlightStatus] = None,
         pilot_id: Optional[int] = None,
     ):
+        """
+        Create a flight entity and validate all required business rules.
+
+        A Flight instance is guaranteed to be in a valid state after
+        construction. Any validation failures are accumulated and raised
+        together as a FlightValidationError.
+        """
         self._validations = []
 
         self._flight_id = flight_id
@@ -78,6 +95,14 @@ class Flight:
         status: str,
         pilot_id: Optional[int],
     ):
+        """
+        Create a Flight entity from a database result row.
+
+        Converts database-specific representations such as:
+        - string timestamps -> datetime objects
+        - status code strings -> FlightStatus enum values
+        - numeric flight numbers -> domain flight number format
+        """
         return cls(
             flight_id=flight_id,
             flight_number=f"F{flight_number}",
@@ -122,11 +147,23 @@ class Flight:
         return self._pilot_id
 
     def validate(self) -> None:
+        """
+        Raise a FlightValidationError if any validation failures
+        have been collected.
+
+        Validation messages are aggregated so callers can see all
+        violations at once instead of fixing them one by one.
+        """
         if self._validations:
             raise FlightValidationError("\n".join(self._validations))
         self._validations = []
 
     def assign_pilot(self, pilot_id: Optional[int]) -> None:
+        """
+        Assign a pilot to the flight.
+
+        The pilot identifier must be present and greater than zero.
+        """
         if not pilot_id:
             self._validations.append("pilot_id must be present")
             self.validate()
@@ -144,6 +181,12 @@ class Flight:
         departure: Optional[datetime],
         arrival: Optional[datetime],
     ) -> None:
+        """
+        Update the flight schedule.
+
+        Schedule changes are prohibited once a flight has been
+        terminated.
+        """
         self._validate_schedule(departure, arrival)
 
         if self._status == FlightStatus.TERMINATED:
@@ -156,6 +199,13 @@ class Flight:
             self._arrival = arrival
 
     def start_operation(self) -> None:
+        """
+        Transition the flight from Scheduled to Operational.
+
+        Business rules:
+        - Only scheduled flights can start operation.
+        - An operational flight must have an assigned pilot.
+        """
         if self._status != FlightStatus.SCHEDULED:
             self._validations.append("Only scheduled flights can start operation")
 
@@ -167,6 +217,12 @@ class Flight:
         self._status = FlightStatus.OPERATIONAL
 
     def terminate(self) -> None:
+        """
+        Transition the flight from Operational to Terminated.
+
+        Business rule:
+        - Only operational flights can be terminated.
+        """
         if self._status != FlightStatus.OPERATIONAL:
             self._validations.append("Only operational flights can terminate")
 
@@ -175,6 +231,9 @@ class Flight:
         self._status = FlightStatus.TERMINATED
 
     def _validate_flight_number(self, flight_number: Optional[str]) -> None:
+        """
+        Validate flight number presence and in correct format.
+        """
         if not flight_number:
             self._validations.append("flight number must be present")
             return
@@ -183,6 +242,9 @@ class Flight:
             self._validations.append("flight number must follow F999999 pattern")
 
     def _validate_status(self, status: Optional[FlightStatus]) -> None:
+        """
+        Validate status presence.
+        """
         if not status:
             self._validations.append("status must be present")
 
@@ -191,6 +253,10 @@ class Flight:
         departure: Optional[datetime],
         arrival: Optional[datetime],
     ) -> None:
+        """
+        Validate that both schedule timestamps are present and that
+        arrival occurs after departure.
+        """
         if departure is None:
             self._validations.append("departure must be present")
             return
@@ -207,6 +273,12 @@ class Flight:
         origin_id: Optional[int],
         destination_id: Optional[int],
     ) -> None:
+        """
+        Validate airport assignments.
+
+        Origin and destination airports must both exist and must
+        not refer to the same airport.
+        """
         if origin_id is None:
             self._validations.append("origin must be present")
             return
@@ -219,6 +291,12 @@ class Flight:
             self._validations.append("origin and destination cannot be equal")
 
     def _validate_status_and_pilot_id(self) -> None:
+        """
+        Ensure flights in active or completed states have a pilot.
+
+        Operational and terminated flights are expected to have been
+        flown, therefore a pilot assignment is mandatory.
+        """
         if (
             self._status
             in {
@@ -232,7 +310,9 @@ class Flight:
             )
 
 
-# FlightView class -> Embodies all flight related data for viewing
+# Read-only projection used for displaying flight information.
+# This class combines flight, pilot, and airport data into a format
+# suitable for tables, reports, or UI presentation.
 class FlightView:
     def __init__(
         self,
@@ -281,7 +361,8 @@ class FlightView:
         self.destination_country = destination_country
 
 
-# PilotView class -> Embodies all pilot related data for viewing
+# Read-only projection used for displaying pilot information.
+# Formats identifiers for presentation purposes.
 class PilotView:
     def __init__(
         self,
@@ -302,7 +383,13 @@ class PilotView:
         self.flight_hours = flight_hours
 
 
-# FlightSearch class -> Configures the flight query
+# Defines the supported search criteria for querying flights.
+#
+# Notes:
+# - All fields are optional.
+# - projection controls which fields are returned.
+# - order specifies sorting instructions in the form:
+#   ("field_name", "asc" | "desc")
 class FlightSearch(TypedDict):
     projection: NotRequired[List[str]]
     flight_id: NotRequired[int]
