@@ -236,7 +236,7 @@ class NewFlightMenuOption(MenuOption):
 
     def __create_flight_from_input(self) -> Optional[Flight]:
         try:
-            flight_number = optional_input("Flight number: ")
+            flight_number = optional_input("Flight number (F999999): ")
             print("Available statuses:")
             for status in FlightStatus:
                 print(f"{status.value} - {status.label}")
